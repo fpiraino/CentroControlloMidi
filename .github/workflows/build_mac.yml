@@ -35,8 +35,8 @@ jobs:
         pyinstaller --onefile --windowed --name CentroControlloMIDI centro_controllo_midi.py
 
     # Archive the application
-    - name: Create release artifact
-      uses: actions/upload-artifact@v3
+    - name: Upload application artifact
+      uses: actions/upload-artifact@v4
       with:
         name: CentroControlloMIDI-macOS
         path: dist/CentroControlloMIDI
