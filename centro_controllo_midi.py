@@ -1,5 +1,5 @@
 from PyQt5.QtWidgets import (
-    QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QLabel, QComboBox, QPushButton, QWidget, QGroupBox, QMessageBox
+    QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QLabel, QComboBox, QPushButton, QWidget, QGroupBox, QMessageBox, QTextEdit
 )
 from PyQt5.QtCore import Qt
 from mido import Message, get_output_names, open_output
@@ -25,6 +25,12 @@ class CentroControlloMIDI(QMainWindow):
         looperhino_group = self.create_looperhino_group()
         main_layout.addWidget(looperhino_group)
 
+        # Riquadro per log dei messaggi MIDI
+        self.log_box = QTextEdit()
+        self.log_box.setReadOnly(True)
+        self.log_box.setPlaceholderText("Log dei messaggi MIDI inviati...")
+        main_layout.addWidget(self.log_box)
+
         # Imposta layout nella finestra
         container = QWidget()
         container.setLayout(main_layout)
@@ -49,6 +55,7 @@ class CentroControlloMIDI(QMainWindow):
         if port_name != "Nessuna porta disponibile" and port_name in self.available_ports:
             try:
                 self.midi_output = open_output(port_name, backend='mido.backends.rtmidi')
+                self.log_message(f"Porta MIDI selezionata: {port_name}")
             except Exception as e:
                 self.show_error_message(f"Errore nell'aprire la porta MIDI: {e}")
         else:
@@ -99,14 +106,22 @@ class CentroControlloMIDI(QMainWindow):
         if self.midi_output:
             channel = int(self.channel_dropdown.currentText()) - 1
             cc_value = 127 if value == "ON" else 0
-            self.midi_output.send(Message('control_change', channel=channel, control=102, value=cc_value))
+            message = Message('control_change', channel=channel, control=102, value=cc_value)
+            self.midi_output.send(message)
+            self.log_message(f"Inviato: {message}")
 
     def handle_toggle(self, cc, checked):
         """Gestisce i pulsanti toggle."""
         if self.midi_output:
             channel = int(self.channel_dropdown.currentText()) - 1
             value = 127 if checked else 0
-            self.midi_output.send(Message('control_change', channel=channel, control=cc, value=value))
+            message = Message('control_change', channel=channel, control=cc, value=value)
+            self.midi_output.send(message)
+            self.log_message(f"Inviato: {message}")
+
+    def log_message(self, message):
+        """Aggiunge un messaggio al log dei messaggi MIDI."""
+        self.log_box.append(str(message))
 
     def show_error_message(self, message):
         """Mostra un messaggio di errore all'utente."""
