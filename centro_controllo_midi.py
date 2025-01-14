@@ -3,6 +3,7 @@ from PyQt5.QtWidgets import (
 )
 from PyQt5.QtCore import Qt
 from mido import Message, open_output
+from mido.backends import rtmidi
 
 class CentroControlloMIDI(QMainWindow):
     def __init__(self):
@@ -10,7 +11,7 @@ class CentroControlloMIDI(QMainWindow):
         self.setWindowTitle("Centro Controllo MIDI")
 
         # Porta MIDI di output
-        self.midi_output = open_output('Virtual MIDI Output')  # Cambia con il tuo dispositivo
+        self.midi_output = open_output('Virtual MIDI Output', backend='mido.backends.rtmidi')  # Cambia con il tuo dispositivo
 
         # Layout principale
         main_layout = QVBoxLayout()
