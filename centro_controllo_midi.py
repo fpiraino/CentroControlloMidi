@@ -105,6 +105,14 @@ class CentroControlloMIDI(QMainWindow):
         group_box.setLayout(layout)
         return group_box
 
+    def handle_buffer_change(self, value):
+        """Gestisce la modifica del buffer ON/OFF."""
+        if self.midi_output:
+            channel = int(self.channel_dropdown.currentText()) - 1
+            cc_value = 127 if value == "ON" else 0
+            self.midi_output.send(Message('control_change', channel=channel, control=102, value=cc_value))
+            self.log_message(f"Buffer cambiato a {value}, inviato CC 102: {cc_value}")
+
     def create_walrus_group(self):
         group_box = QGroupBox("Walrus Mako D1")
         layout = QVBoxLayout()
