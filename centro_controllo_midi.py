@@ -1,4 +1,3 @@
-
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QLabel, QComboBox, QPushButton, QWidget, QGroupBox, QMessageBox, QTextEdit, QSlider
 )
@@ -132,6 +131,8 @@ class CentroControlloMIDI(QMainWindow):
             slider_label = QLabel(label)
             slider = QSlider(Qt.Horizontal)
             slider.setRange(0, 127)
+            slider.setTickPosition(QSlider.TicksBelow)
+            slider.setTickInterval(64)
             slider.valueChanged.connect(lambda value, cc=cc: self.handle_slider_change(cc, value))
             slider_layout.addWidget(slider_label)
             slider_layout.addWidget(slider)
@@ -195,7 +196,10 @@ class CentroControlloMIDI(QMainWindow):
         for label, cc in zip(toggle_labels, cc_values):
             button = QPushButton(label)
             button.setCheckable(True)
-            button.clicked.connect(lambda checked, cc=cc: self.handle_toggle(cc, checked))
+            if label == "D1":
+                button.clicked.connect(lambda checked, cc=cc: self.handle_d1_toggle(cc, checked))
+            else:
+                button.clicked.connect(lambda checked, cc=cc: self.handle_toggle(cc, checked))
             layout.addWidget(button)
 
         group_box.setLayout(layout)
@@ -207,6 +211,13 @@ class CentroControlloMIDI(QMainWindow):
             value = 127 if checked else 0
             self.midi_output.send(Message('control_change', channel=channel, control=cc, value=value))
             self.log_message(f"Inviato CC {cc} con valore {value}")
+
+    def handle_d1_toggle(self, cc, checked):
+        if self.midi_output:
+            channel = int(self.walrus_channel_dropdown.currentText()) - 1
+            value = 127 if checked else 0
+            self.midi_output.send(Message('control_change', channel=channel, control=cc, value=value))
+            self.log_message(f"Inviato CC {cc} con valore {value} (D1)")
 
     def toggle_log_view(self, checked):
         if checked:
