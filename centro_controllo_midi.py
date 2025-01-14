@@ -1,8 +1,8 @@
 from PyQt5.QtWidgets import (
-    QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QLabel, QComboBox, QPushButton, QWidget, QGroupBox
+    QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QLabel, QComboBox, QPushButton, QWidget, QGroupBox, QMessageBox
 )
 from PyQt5.QtCore import Qt
-from mido import Message, open_output
+from mido import Message, get_output_names, open_output
 from mido.backends import rtmidi
 
 class CentroControlloMIDI(QMainWindow):
@@ -11,10 +11,15 @@ class CentroControlloMIDI(QMainWindow):
         self.setWindowTitle("Centro Controllo MIDI")
 
         # Porta MIDI di output
-        self.midi_output = open_output('Virtual MIDI Output', backend='mido.backends.rtmidi')  # Cambia con il tuo dispositivo
+        self.midi_output = None
+        self.available_ports = get_output_names()
 
         # Layout principale
         main_layout = QVBoxLayout()
+
+        # Selezione porta MIDI
+        midi_port_group = self.create_midi_port_group()
+        main_layout.addWidget(midi_port_group)
 
         # Riquadro LoopeRhino
         looperhino_group = self.create_looperhino_group()
@@ -24,6 +29,30 @@ class CentroControlloMIDI(QMainWindow):
         container = QWidget()
         container.setLayout(main_layout)
         self.setCentralWidget(container)
+
+    def create_midi_port_group(self):
+        group_box = QGroupBox("Selezione Porta MIDI")
+        layout = QHBoxLayout()
+
+        port_label = QLabel("Porta MIDI:")
+        self.port_dropdown = QComboBox()
+        self.port_dropdown.addItems(self.available_ports if self.available_ports else ["Nessuna porta disponibile"])
+        self.port_dropdown.currentTextChanged.connect(self.change_midi_port)
+
+        layout.addWidget(port_label)
+        layout.addWidget(self.port_dropdown)
+        group_box.setLayout(layout)
+        return group_box
+
+    def change_midi_port(self, port_name):
+        """Cambia la porta MIDI attiva."""
+        if port_name != "Nessuna porta disponibile" and port_name in self.available_ports:
+            try:
+                self.midi_output = open_output(port_name, backend='mido.backends.rtmidi')
+            except Exception as e:
+                self.show_error_message(f"Errore nell'aprire la porta MIDI: {e}")
+        else:
+            self.midi_output = None
 
     def create_looperhino_group(self):
         group_box = QGroupBox("LoopeRhino")
@@ -67,15 +96,25 @@ class CentroControlloMIDI(QMainWindow):
 
     def handle_buffer_change(self, value):
         """Gestisce la modifica del buffer."""
-        channel = int(self.channel_dropdown.currentText()) - 1
-        cc_value = 127 if value == "ON" else 0
-        self.midi_output.send(Message('control_change', channel=channel, control=102, value=cc_value))
+        if self.midi_output:
+            channel = int(self.channel_dropdown.currentText()) - 1
+            cc_value = 127 if value == "ON" else 0
+            self.midi_output.send(Message('control_change', channel=channel, control=102, value=cc_value))
 
     def handle_toggle(self, cc, checked):
         """Gestisce i pulsanti toggle."""
-        channel = int(self.channel_dropdown.currentText()) - 1
-        value = 127 if checked else 0
-        self.midi_output.send(Message('control_change', channel=channel, control=cc, value=value))
+        if self.midi_output:
+            channel = int(self.channel_dropdown.currentText()) - 1
+            value = 127 if checked else 0
+            self.midi_output.send(Message('control_change', channel=channel, control=cc, value=value))
+
+    def show_error_message(self, message):
+        """Mostra un messaggio di errore all'utente."""
+        msg = QMessageBox()
+        msg.setIcon(QMessageBox.Critical)
+        msg.setWindowTitle("Errore MIDI")
+        msg.setText(message)
+        msg.exec_()
 
 # Avvio dell'applicazione
 if __name__ == "__main__":
