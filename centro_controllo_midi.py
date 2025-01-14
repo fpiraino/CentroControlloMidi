@@ -1,41 +1,43 @@
+
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QVBoxLayout, QHBoxLayout, QLabel, QComboBox, QPushButton, QWidget, QGroupBox, QMessageBox, QTextEdit, QSlider
 )
 from PyQt5.QtCore import Qt
 from mido import Message, get_output_names, open_output
-from mido.backends import rtmidi
 
 class CentroControlloMIDI(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Centro Controllo MIDI")
 
-        # Porta MIDI di output
         self.midi_output = None
         self.available_ports = get_output_names()
 
-        # Layout principale
         main_layout = QVBoxLayout()
 
-        # Selezione porta MIDI
         midi_port_group = self.create_midi_port_group()
         main_layout.addWidget(midi_port_group)
 
-        # Riquadro LoopeRhino
         looperhino_group = self.create_looperhino_group()
         main_layout.addWidget(looperhino_group)
 
-        # Riquadro Walrus Mako D1
         walrus_group = self.create_walrus_group()
         main_layout.addWidget(walrus_group)
 
-        # Riquadro per log dei messaggi MIDI
+        pedalboard_view_group = self.create_pedalboard_view_group()
+        main_layout.addWidget(pedalboard_view_group)
+
         self.log_box = QTextEdit()
         self.log_box.setReadOnly(True)
         self.log_box.setPlaceholderText("Log dei messaggi MIDI inviati...")
+        self.log_box.hide()
         main_layout.addWidget(self.log_box)
 
-        # Imposta layout nella finestra
+        self.log_toggle_button = QPushButton("Vista MIDI OUT")
+        self.log_toggle_button.setCheckable(True)
+        self.log_toggle_button.clicked.connect(self.toggle_log_view)
+        main_layout.addWidget(self.log_toggle_button)
+
         container = QWidget()
         container.setLayout(main_layout)
         self.setCentralWidget(container)
@@ -55,10 +57,9 @@ class CentroControlloMIDI(QMainWindow):
         return group_box
 
     def change_midi_port(self, port_name):
-        """Cambia la porta MIDI attiva."""
         if port_name != "Nessuna porta disponibile" and port_name in self.available_ports:
             try:
-                self.midi_output = open_output(port_name, backend='mido.backends.rtmidi')
+                self.midi_output = open_output(port_name)
                 self.log_message(f"Porta MIDI selezionata: {port_name}")
             except Exception as e:
                 self.show_error_message(f"Errore nell'aprire la porta MIDI: {e}")
@@ -69,7 +70,6 @@ class CentroControlloMIDI(QMainWindow):
         group_box = QGroupBox("LoopeRhino")
         layout = QVBoxLayout()
 
-        # Dropdown per canale MIDI
         channel_layout = QHBoxLayout()
         channel_label = QLabel("Canale MIDI:")
         self.channel_dropdown = QComboBox()
@@ -78,7 +78,6 @@ class CentroControlloMIDI(QMainWindow):
         channel_layout.addWidget(self.channel_dropdown)
         layout.addLayout(channel_layout)
 
-        # Dropdown per buffer ON/OFF
         buffer_layout = QHBoxLayout()
         buffer_label = QLabel("Buffer:")
         self.buffer_dropdown = QComboBox()
@@ -88,33 +87,10 @@ class CentroControlloMIDI(QMainWindow):
         buffer_layout.addWidget(self.buffer_dropdown)
         layout.addLayout(buffer_layout)
 
-        # Pulsanti Toggle
-        toggle_layout = QHBoxLayout()
-        self.toggle_buttons = {}
-        toggle_labels = ["L1", "L2", "L3", "L4", "L5", "C1", "C2"]
-        cc_values = [103, 104, 105, 106, 107, 108, 109]
-
-        for label, cc in zip(toggle_labels, cc_values):
-            button = QPushButton(label)
-            button.setCheckable(True)
-            button.clicked.connect(lambda checked, cc=cc: self.handle_toggle(cc, checked))
-            self.toggle_buttons[label] = button
-            toggle_layout.addWidget(button)
-
-        layout.addLayout(toggle_layout)
         group_box.setLayout(layout)
         return group_box
 
-    def handle_toggle(self, cc, checked):
-        """Gestisce i pulsanti toggle."""
-        if self.midi_output:
-            channel = int(self.channel_dropdown.currentText()) - 1
-            value = 127 if checked else 0
-            self.midi_output.send(Message('control_change', channel=channel, control=cc, value=value))
-            self.log_message(f"Inviato CC {cc} con valore {value}")
-
     def handle_buffer_change(self, value):
-        """Gestisce la modifica del buffer ON/OFF."""
         if self.midi_output:
             channel = int(self.channel_dropdown.currentText()) - 1
             cc_value = 127 if value == "ON" else 0
@@ -125,7 +101,6 @@ class CentroControlloMIDI(QMainWindow):
         group_box = QGroupBox("Walrus Mako D1")
         layout = QVBoxLayout()
 
-        # Dropdown per canale MIDI
         channel_layout = QHBoxLayout()
         channel_label = QLabel("Canale MIDI:")
         self.walrus_channel_dropdown = QComboBox()
@@ -134,7 +109,6 @@ class CentroControlloMIDI(QMainWindow):
         channel_layout.addWidget(self.walrus_channel_dropdown)
         layout.addLayout(channel_layout)
 
-        # Dropdown per selezione preset
         preset_layout = QHBoxLayout()
         preset_label = QLabel("Preset:")
         self.preset_dropdown = QComboBox()
@@ -149,13 +123,6 @@ class CentroControlloMIDI(QMainWindow):
         preset_layout.addWidget(self.preset_dropdown)
         layout.addLayout(preset_layout)
 
-        # Pulsante BYPASS
-        self.bypass_button = QPushButton("BYPASS")
-        self.bypass_button.setCheckable(True)
-        self.bypass_button.clicked.connect(self.handle_bypass)
-        layout.addWidget(self.bypass_button)
-
-        # Slider per i parametri
         sliders = {
             "Time": 14, "Repeat": 15, "Mix": 20, "Mod": 21,
             "Tone": 22, "Age": 23, "Attack": 25
@@ -170,7 +137,6 @@ class CentroControlloMIDI(QMainWindow):
             slider_layout.addWidget(slider)
             layout.addLayout(slider_layout)
 
-        # Dropdown per Progr
         progr_layout = QHBoxLayout()
         progr_label = QLabel("Progr:")
         self.progr_dropdown = QComboBox()
@@ -181,7 +147,6 @@ class CentroControlloMIDI(QMainWindow):
         progr_layout.addWidget(self.progr_dropdown)
         layout.addLayout(progr_layout)
 
-        # Dropdown per SubDiv
         subdiv_layout = QHBoxLayout()
         subdiv_label = QLabel("SubDiv:")
         self.subdiv_dropdown = QComboBox()
@@ -201,13 +166,6 @@ class CentroControlloMIDI(QMainWindow):
             self.midi_output.send(Message('program_change', channel=channel, program=index))
             self.log_message(f"Inviato Program Change: {index}")
 
-    def handle_bypass(self, checked):
-        if self.midi_output:
-            channel = int(self.walrus_channel_dropdown.currentText()) - 1
-            value = 127 if checked else 0
-            self.midi_output.send(Message('control_change', channel=channel, control=29, value=value))
-            self.log_message(f"Inviato BYPASS CC 29: {value}")
-
     def handle_slider_change(self, cc, value):
         if self.midi_output:
             channel = int(self.walrus_channel_dropdown.currentText()) - 1
@@ -223,23 +181,50 @@ class CentroControlloMIDI(QMainWindow):
     def handle_subdiv_change(self, index):
         if self.midi_output:
             channel = int(self.walrus_channel_dropdown.currentText()) - 1
-            values = [0, 43, 86]  # Valori corrispondenti
+            values = [0, 43, 86]
             self.midi_output.send(Message('control_change', channel=channel, control=28, value=values[index]))
             self.log_message(f"Inviato SubDiv CC 28: {values[index]}")
 
+    def create_pedalboard_view_group(self):
+        group_box = QGroupBox("Pedalboard View")
+        layout = QHBoxLayout()
+
+        toggle_labels = ["L1", "L2", "L3", "L4", "L5", "D1"]
+        cc_values = [103, 104, 105, 106, 107, 29]
+
+        for label, cc in zip(toggle_labels, cc_values):
+            button = QPushButton(label)
+            button.setCheckable(True)
+            button.clicked.connect(lambda checked, cc=cc: self.handle_toggle(cc, checked))
+            layout.addWidget(button)
+
+        group_box.setLayout(layout)
+        return group_box
+
+    def handle_toggle(self, cc, checked):
+        if self.midi_output:
+            channel = int(self.channel_dropdown.currentText()) - 1
+            value = 127 if checked else 0
+            self.midi_output.send(Message('control_change', channel=channel, control=cc, value=value))
+            self.log_message(f"Inviato CC {cc} con valore {value}")
+
+    def toggle_log_view(self, checked):
+        if checked:
+            self.log_box.show()
+        else:
+            self.log_box.hide()
+
     def log_message(self, message):
-        """Aggiunge un messaggio al log dei messaggi MIDI."""
         self.log_box.append(str(message))
 
     def show_error_message(self, message):
-        """Mostra un messaggio di errore all'utente."""
         msg = QMessageBox()
         msg.setIcon(QMessageBox.Critical)
         msg.setWindowTitle("Errore MIDI")
         msg.setText(message)
         msg.exec_()
 
-# Avvio dell'applicazione
+
 if __name__ == "__main__":
     app = QApplication([])
     window = CentroControlloMIDI()
