@@ -32,11 +32,11 @@ jobs:
     # Build standalone application
     - name: Build application with PyInstaller
       run: |
-        pyinstaller --onefile --windowed --name CentroControlloMIDI main.py
+        pyinstaller --onefile --windowed --name CentroControlloMIDI centro_controllo_midi.py
 
     # Archive the application
     - name: Create release artifact
       uses: actions/upload-artifact@v3
       with:
-        name CentroControlloMIDI-macOS
+        name: CentroControlloMIDI-macOS
         path: dist/CentroControlloMIDI
