@@ -105,6 +105,14 @@ class CentroControlloMIDI(QMainWindow):
         group_box.setLayout(layout)
         return group_box
 
+    def handle_toggle(self, cc, checked):
+        """Gestisce i pulsanti toggle."""
+        if self.midi_output:
+            channel = int(self.channel_dropdown.currentText()) - 1
+            value = 127 if checked else 0
+            self.midi_output.send(Message('control_change', channel=channel, control=cc, value=value))
+            self.log_message(f"Inviato CC {cc} con valore {value}")
+
     def handle_buffer_change(self, value):
         """Gestisce la modifica del buffer ON/OFF."""
         if self.midi_output:
